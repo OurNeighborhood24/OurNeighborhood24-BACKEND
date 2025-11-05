@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.config import get_settings
 from core.database import init_db
 from api.users.router import router as users_router
+from api.auth.router import router as auth_router
 
 settings = get_settings()
 
@@ -48,6 +49,7 @@ async def health_check():
 
 # 라우터 등록
 app.include_router(users_router, prefix="/users", tags=["users"])
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 if __name__ == "__main__":
     import uvicorn

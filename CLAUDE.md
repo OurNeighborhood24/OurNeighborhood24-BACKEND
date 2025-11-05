@@ -111,7 +111,7 @@ report (1) — (0..1) report_answer : report_answer.report_id → report.report_
 ## 엔드포인트 목록
 
 | 도메인          | 설명           | 메서드    | 경로                               | 권한        |
-| ------------ | ------------ | ------ | -------------------------------- | --------- |
+| ------------ | ------------ | ------ | -------------------------------- |-----------|
 | User         | 회원가입         | POST   | /users/register                  | Anonymous |
 | User         | 지역 목록 조회     | GET    | /users/regions                   | Anonymous |
 | User         | 본인 조회        | GET    | /users                           | User      |
@@ -126,7 +126,7 @@ report (1) — (0..1) report_answer : report_answer.report_id → report.report_
 | Report       | 내 신고 조회      | GET    | /reports/my                      | User      |
 | Report       | 내 신고 삭제      | DELETE | /reports/{report-id}             | User      |
 | Report       | 내 신고 수정      | PATCH  | /reports/{report-id}             | User      |
-| Report       | 신고 목록 조회     | GET    | /reports                         | Admin     |
+| Report       | 신고 목록 조회     | GET    | /reports                         | User      |
 | Report       | 신고 상태 전환하기   | PATCH  | /reports/{report-id}/state       | Admin     |
 | Report       | 신고 응답하기      | POST   | /reports/{report-id}/answer      | Admin     |
 | Report       | 응답한 신고 목록 조회 | GET    | /reports/answers                 | Admin     |
