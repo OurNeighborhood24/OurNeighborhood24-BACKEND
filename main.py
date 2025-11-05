@@ -5,6 +5,7 @@ from core.database import init_db
 from api.users.router import router as users_router
 from api.auth.router import router as auth_router
 from api.reports.router import router as reports_router
+from api.notifications.router import router as notifications_router
 
 settings = get_settings()
 
@@ -52,6 +53,7 @@ async def health_check():
 app.include_router(users_router, prefix="/users", tags=["users"])
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(reports_router, prefix="/reports", tags=["reports"])
+app.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 
 if __name__ == "__main__":
     import uvicorn
