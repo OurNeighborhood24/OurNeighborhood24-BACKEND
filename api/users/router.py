@@ -8,7 +8,8 @@ from app.users.schemas import (
     UserRegisterRequest,
     UserRegisterResponse,
     UserResponse,
-    RegionResponse
+    RegionResponse,
+    UpdateRegionRequest
 )
 
 router = APIRouter(prefix="/users")
@@ -122,17 +123,17 @@ async def get_my_info(
     description="현재 로그인한 사용자의 지역을 변경합니다."
 )
 async def update_my_region(
-    region_id: int,
+    request: UpdateRegionRequest,
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
     """
     지역 설정 변경 엔드포인트
 
-    - **region_id**: 새로운 지역 ID
+    - **region_id**: 새로운 지역 ID (request body)
     """
     user_service = UserService(db)
-    user = user_service.update_user_region(user_id, region_id)
+    user = user_service.update_user_region(user_id, request.region_id)
 
     return UserResponse(
         user_id=user.user_id,

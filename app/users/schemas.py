@@ -34,3 +34,8 @@ class UserRegisterResponse(BaseModel):
     """회원가입 응답 스키마"""
     message: str
     user: UserResponse
+
+
+class UpdateRegionRequest(BaseModel):
+    """지역 변경 요청 스키마"""
+    region_id: int = Field(..., description="새로운 지역 ID")

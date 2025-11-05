@@ -97,3 +97,14 @@ class ReportWithAnswerResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PaginatedReportResponse(BaseModel):
+    """페이지네이션된 신고 목록 응답 스키마"""
+    total: int = Field(..., description="전체 신고 수")
+    offset: int = Field(..., description="시작 위치")
+    size: int = Field(..., description="페이지 크기")
+    items: List[ReportDetailResponse] = Field(..., description="신고 목록")
+
+    class Config:
+        from_attributes = True

@@ -111,14 +111,24 @@ class ReportService:
         """
         return self.db.query(Report).filter(Report.writer_id == user_id).all()
 
-    def get_all_reports(self) -> List[Report]:
+    def get_all_reports(self, offset: int = 0, size: int = 15) -> tuple[List[Report], int]:
         """
-        모든 신고 조회 (관리자용)
+        모든 신고 조회 (페이지네이션)
+
+        Args:
+            offset: 시작 위치 (default: 0)
+            size: 페이지 크기 (default: 15)
 
         Returns:
-            신고 목록
+            (신고 목록, 전체 신고 수) 튜플
         """
-        return self.db.query(Report).all()
+        # 전체 신고 수 조회
+        total = self.db.query(Report).count()
+
+        # 페이지네이션된 신고 목록 조회
+        reports = self.db.query(Report).offset(offset).limit(size).all()
+
+        return reports, total
 
     def update_report(
         self,

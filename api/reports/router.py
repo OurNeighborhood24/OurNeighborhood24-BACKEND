@@ -13,7 +13,8 @@ from app.reports.schemas import (
     ReportStateUpdateRequest,
     ReportAnswerCreateRequest,
     ReportAnswerResponse,
-    ReportWithAnswerResponse
+    ReportWithAnswerResponse,
+    PaginatedReportResponse
 )
 
 router = APIRouter()
@@ -187,24 +188,28 @@ async def delete_report(
 
 @router.get(
     "",
-    response_model=List[ReportDetailResponse],
+    response_model=PaginatedReportResponse,
     status_code=status.HTTP_200_OK,
-    summary="신고 목록 조회 (관리자)",
-    description="모든 신고 목록을 조회합니다. 관리자 권한 필요."
+    summary="신고 목록 조회",
+    description="모든 신고 목록을 페이지네이션하여 조회합니다. 인증 불필요."
 )
 async def get_all_reports(
-    _: None = Depends(require_admin),
+    offset: int = 0,
+    size: int = 15,
     db: Session = Depends(get_db)
 ):
     """
-    신고 목록 조회 엔드포인트 (관리자용)
+    신고 목록 조회 엔드포인트
 
-    모든 신고를 반환합니다. 관리자 권한이 필요합니다.
+    오프셋 기반 페이지네이션을 사용합니다.
+
+    - **offset**: 시작 위치 (default: 0)
+    - **size**: 페이지 크기 (default: 15)
     """
     report_service = ReportService(db)
-    reports = report_service.get_all_reports()
+    reports, total = report_service.get_all_reports(offset=offset, size=size)
 
-    return [
+    items = [
         ReportDetailResponse(
             report_id=report.report_id,
             writer_id=report.writer_id,
@@ -222,6 +227,13 @@ async def get_all_reports(
         )
         for report in reports
     ]
+
+    return PaginatedReportResponse(
+        total=total,
+        offset=offset,
+        size=size,
+        items=items
+    )
 
 
 @router.patch(
