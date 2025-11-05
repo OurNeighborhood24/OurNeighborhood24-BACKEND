@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from core.database import get_db
 from core.dependencies import get_current_user_id, require_admin
 from app.reports.service import CategoryService, ReportService
+from core.util.s3_util import get_s3_util
 from app.reports.schemas import (
     CategoryResponse,
     ReportCreateRequest,
@@ -43,6 +44,34 @@ async def get_categories(db: Session = Depends(get_db)):
         )
         for category in categories
     ]
+
+
+@router.post(
+    "/images",
+    status_code=status.HTTP_201_CREATED,
+    summary="신고 이미지 업로드",
+    description="신고용 이미지를 S3에 업로드하고 public URL을 반환합니다."
+)
+async def upload_report_image(
+    file: UploadFile = File(...),
+    user_id: int = Depends(get_current_user_id)
+):
+    """
+    신고 이미지 업로드 엔드포인트
+
+    - **file**: 업로드할 이미지 파일 (jpg, jpeg, png, gif, webp)
+    - 최대 파일 크기: 10MB
+
+    **응답:**
+    - image_url: 업로드된 이미지의 public URL
+    """
+    s3_util = get_s3_util()
+    image_url = await s3_util.upload_image(file, folder="reports")
+
+    return {
+        "message": "Image uploaded successfully",
+        "image_url": image_url
+    }
 
 
 @router.post(

@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     max_upload_size: int = 10 * 1024 * 1024  # 10MB
     upload_dir: str = "uploads"
 
+    # AWS S3 설정
+    aws_access_key: str = os.getenv("AWS_ACCESS_KEY", "")
+    aws_secret_key: str = os.getenv("AWS_SECRET_KEY", "")
+    aws_region: str = os.getenv("AWS_REGION", "ap-northeast-2")
+    aws_s3_bucket: str = os.getenv("AWS_S3_BUCKET", "")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
