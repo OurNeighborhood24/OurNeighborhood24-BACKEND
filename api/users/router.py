@@ -29,9 +29,10 @@ async def register(
     """
     회원가입 엔드포인트
 
-    - **email**: 사용자 이메일 (고유해야 함)
+    - **id**: 사용자 ID (고유해야 함)
     - **password**: 비밀번호 (8-30자)
     - **region_id**: 지역 ID
+    - **role**: 권한
     """
     user_service = UserService(db)
     user = user_service.register_user(request)
@@ -40,7 +41,6 @@ async def register(
         message="User registered successfully",
         user=UserResponse(
             user_id=user.user_id,
-            email=user.email,
             role=user.role.value,
             region=RegionResponse(
                 region_id=user.region.region_id,
@@ -105,7 +105,6 @@ async def get_my_info(
 
     return UserResponse(
         user_id=user.user_id,
-        email=user.email,
         role=user.role.value,
         region=RegionResponse(
             region_id=user.region.region_id,
@@ -137,7 +136,6 @@ async def update_my_region(
 
     return UserResponse(
         user_id=user.user_id,
-        email=user.email,
         role=user.role.value,
         region=RegionResponse(
             region_id=user.region.region_id,

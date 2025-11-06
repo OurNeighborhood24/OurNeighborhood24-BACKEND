@@ -8,6 +8,7 @@ from app.reports.schemas import (
     ReportStateUpdateRequest,
     ReportAnswerCreateRequest
 )
+from core.util.geo_util import GeoUtil
 
 
 class CategoryService:
@@ -283,10 +284,10 @@ class ReportService:
             request: 답변 생성 요청 데이터
 
         Returns:
-            생성된 답변 객체
+            생성된 답변 객체 (현재 신고 상태가 스냅샷으로 저장됨)
 
         Raises:
-            HTTPException: 신고가 존재하지 않거나 이미 답변이 있는 경우
+            HTTPException: 신고가 존재하지 않는 경우
         """
         report = self.get_report_by_id(report_id)
 
@@ -296,23 +297,12 @@ class ReportService:
                 detail="Report not found"
             )
 
-        # 이미 답변이 있는지 확인
-        existing_answer = self.db.query(ReportAnswer).filter(
-            ReportAnswer.report_id == report_id
-        ).first()
-
-        if existing_answer:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Report already has an answer"
-            )
-
-        # 답변 생성
+        # 답변 생성 (현재 신고 상태를 스냅샷으로 저장)
         new_answer = ReportAnswer(
             report_id=report_id,
             writer_id=admin_id,
             answer=request.answer,
-            state=request.state
+            state=report.state.value
         )
 
         self.db.add(new_answer)
@@ -329,3 +319,69 @@ class ReportService:
             답변이 있는 신고 목록
         """
         return self.db.query(Report).join(ReportAnswer).all()
+
+    def get_reports_by_location(
+        self,
+        latitude: float,
+        longitude: float,
+        radius_m: int = 1000,
+        category_id: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> List[Report]:
+        """
+        위치 기반 신고 조회 (지도용)
+
+        Args:
+            latitude: 중심점 위도
+            longitude: 중심점 경도
+            radius_m: 검색 반경 (미터, default: 1000)
+            category_id: 카테고리 필터 (선택)
+            limit: 최대 조회 개수 (선택)
+
+        Returns:
+            반경 내의 신고 목록
+        """
+        # 경계 상자 계산 (성능 최적화)
+        min_lat, max_lat, min_lon, max_lon = GeoUtil.calculate_bounding_box(
+            latitude, longitude, radius_m
+        )
+
+        print(f"[DEBUG] 검색 중심점: ({latitude}, {longitude})")
+        print(f"[DEBUG] 검색 반경: {radius_m}m")
+        print(f"[DEBUG] 경계 상자: lat({min_lat:.6f} ~ {max_lat:.6f}), lon({min_lon:.6f} ~ {max_lon:.6f})")
+
+        # 기본 쿼리 (경계 상자 내의 신고 조회)
+        query = self.db.query(Report).filter(
+            Report.latitude >= min_lat,
+            Report.latitude <= max_lat,
+            Report.longitude >= min_lon,
+            Report.longitude <= max_lon
+        )
+
+        # 카테고리 필터 적용
+        if category_id is not None:
+            query = query.filter(Report.category_id == category_id)
+
+        # 모든 결과 가져오기
+        reports = query.all()
+        print(f"[DEBUG] 경계 상자 내 신고 수: {len(reports)}")
+
+        # 정확한 거리 계산으로 필터링
+        filtered_reports = []
+        for report in reports:
+            distance = GeoUtil.haversine_distance(
+                latitude, longitude,
+                report.latitude, report.longitude
+            )
+            print(f"[DEBUG] 신고 ID {report.report_id}: ({report.latitude:.6f}, {report.longitude:.6f}), 거리: {distance:.2f}m")
+
+            if distance <= radius_m:
+                filtered_reports.append(report)
+
+        print(f"[DEBUG] 반경 내 신고 수: {len(filtered_reports)}")
+
+        # limit 적용
+        if limit is not None:
+            filtered_reports = filtered_reports[:limit]
+
+        return filtered_reports

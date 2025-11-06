@@ -1,10 +1,10 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
 class LoginRequest(BaseModel):
     """로그인 요청 스키마"""
-    email: EmailStr = Field(..., description="사용자 이메일")
+    user_id: str = Field(..., description="사용자 ID")
     password: str = Field(..., description="비밀번호")
 
 

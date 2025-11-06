@@ -74,7 +74,6 @@ class ReportStateUpdateRequest(BaseModel):
 class ReportAnswerCreateRequest(BaseModel):
     """신고 답변 생성 요청 스키마"""
     answer: str = Field(..., description="답변 내용")
-    state: str = Field(..., description="답변 상태")
 
 
 class ReportAnswerResponse(BaseModel):
@@ -93,7 +92,7 @@ class ReportAnswerResponse(BaseModel):
 class ReportWithAnswerResponse(BaseModel):
     """답변이 포함된 신고 응답 스키마"""
     report: ReportDetailResponse
-    answer: Optional[ReportAnswerResponse]
+    answers: List[ReportAnswerResponse]
 
     class Config:
         from_attributes = True

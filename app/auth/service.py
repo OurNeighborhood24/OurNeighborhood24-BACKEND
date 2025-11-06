@@ -14,18 +14,18 @@ class AuthService:
         self.db = db
         self.jwt_util = jwt_util
 
-    def authenticate_user(self, email: str, password: str) -> Optional[User]:
+    def authenticate_user(self, user_id: str, password: str) -> Optional[User]:
         """
         사용자 인증
 
         Args:
-            email: 사용자 이메일
+            user_id: 사용자 ID
             password: 비밀번호
 
         Returns:
             인증된 사용자 객체 또는 None
         """
-        user = self.db.query(User).filter(User.email == email).first()
+        user = self.db.query(User).filter(User.id == user_id).first()
 
         if not user:
             return None
@@ -48,19 +48,18 @@ class AuthService:
         Raises:
             HTTPException: 인증 실패 시
         """
-        user = self.authenticate_user(request.email, request.password)
+        user = self.authenticate_user(request.user_id, request.password)
 
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
+                detail="Incorrect user_id or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
         # JWT 페이로드 생성
         payload = {
             "user_id": user.user_id,
-            "email": user.email,
             "role": user.role.value
         }
 
@@ -104,7 +103,6 @@ class AuthService:
         # 새로운 Access Token 생성
         new_payload = {
             "user_id": user.user_id,
-            "email": user.email,
             "role": user.role.value
         }
 

@@ -42,7 +42,7 @@ class Report(Base):
     # 관계
     writer = relationship("User")
     category = relationship("Category", back_populates="reports")
-    answer = relationship("ReportAnswer", back_populates="report", uselist=False)
+    answers = relationship("ReportAnswer", back_populates="report")
 
 
 class ReportAnswer(Base):
@@ -50,12 +50,12 @@ class ReportAnswer(Base):
     __tablename__ = "report_answer"
 
     report_answer_id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
-    report_id = Column(BigInteger, ForeignKey("report.report_id"), nullable=False, unique=True)
+    report_id = Column(BigInteger, ForeignKey("report.report_id"), nullable=False)
     writer_id = Column(BigInteger, ForeignKey("user.user_id"), nullable=False)
     answer = Column(Text, nullable=False)
     state = Column(String(255), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     # 관계
-    report = relationship("Report", back_populates="answer")
+    report = relationship("Report", back_populates="answers")
     writer = relationship("User")

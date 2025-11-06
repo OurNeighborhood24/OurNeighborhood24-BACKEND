@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from core.database import get_db
 from core.dependencies import get_current_user_id, require_admin
 from app.reports.service import CategoryService, ReportService
@@ -117,6 +117,61 @@ async def create_report(
 
 
 @router.get(
+    "/map",
+    response_model=List[ReportDetailResponse],
+    status_code=status.HTTP_200_OK,
+    summary="신고 조회 (지도)",
+    description="위치 기반으로 반경 내의 신고를 조회합니다. 인증 불필요."
+)
+async def get_reports_by_location(
+    latitude: float,
+    longitude: float,
+    radius: int = 1000,
+    category: Optional[int] = None,
+    limit: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    지도용 신고 조회 엔드포인트
+
+    위도/경도를 기준으로 반경 내의 신고를 조회합니다.
+
+    - **latitude**: 중심점 위도 (필수)
+    - **longitude**: 중심점 경도 (필수)
+    - **radius**: 검색 반경 (미터, default: 1000)
+    - **category**: 카테고리 ID 필터 (선택)
+    - **limit**: 최대 조회 개수 (선택)
+    """
+    report_service = ReportService(db)
+    reports = report_service.get_reports_by_location(
+        latitude=latitude,
+        longitude=longitude,
+        radius_m=radius,
+        category_id=category,
+        limit=limit
+    )
+
+    return [
+        ReportDetailResponse(
+            report_id=report.report_id,
+            writer_id=report.writer_id,
+            category=CategoryResponse(
+                category_id=report.category.category_id,
+                category_name=report.category.category_name
+            ),
+            latitude=report.latitude,
+            longitude=report.longitude,
+            title=report.title,
+            description=report.description,
+            image_url=report.image_url,
+            state=report.state.value,
+            created_at=report.created_at
+        )
+        for report in reports
+    ]
+
+
+@router.get(
     "/my",
     response_model=List[ReportDetailResponse],
     status_code=status.HTTP_200_OK,
@@ -213,6 +268,64 @@ async def delete_report(
     report_service = ReportService(db)
     report_service.delete_report(report_id, user_id)
     return None
+
+
+@router.get(
+    "/{report_id}",
+    response_model=ReportWithAnswerResponse,
+    status_code=status.HTTP_200_OK,
+    summary="신고 상세 조회",
+    description="신고 ID로 신고의 상세 정보를 조회합니다. 신고 답변도 함께 조회됩니다. 인증 불필요."
+)
+async def get_report_detail(
+    report_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    신고 상세 조회 엔드포인트
+
+    신고 정보와 답변을 함께 조회합니다.
+
+    - **report_id**: 신고 ID (경로 파라미터)
+    """
+    report_service = ReportService(db)
+    report = report_service.get_report_by_id(report_id)
+
+    if not report:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+
+    return ReportWithAnswerResponse(
+        report=ReportDetailResponse(
+            report_id=report.report_id,
+            writer_id=report.writer_id,
+            category=CategoryResponse(
+                category_id=report.category.category_id,
+                category_name=report.category.category_name
+            ),
+            latitude=report.latitude,
+            longitude=report.longitude,
+            title=report.title,
+            description=report.description,
+            image_url=report.image_url,
+            state=report.state.value,
+            created_at=report.created_at
+        ),
+        answers=[
+            ReportAnswerResponse(
+                report_answer_id=answer.report_answer_id,
+                report_id=answer.report_id,
+                writer_id=answer.writer_id,
+                answer=answer.answer,
+                state=answer.state,
+                created_at=answer.created_at
+            )
+            for answer in report.answers
+        ]
+    )
 
 
 @router.get(
@@ -323,7 +436,7 @@ async def create_report_answer(
 
     - **report_id**: 신고 ID (경로 파라미터)
     - **answer**: 답변 내용
-    - **state**: 답변 상태
+    - **state**: 현재 신고의 상태가 자동으로 스냅샷으로 저장됩니다
     """
     report_service = ReportService(db)
     answer = report_service.create_report_answer(report_id, admin_id, request)
@@ -374,14 +487,17 @@ async def get_reports_with_answers(
                 state=report.state.value,
                 created_at=report.created_at
             ),
-            answer=ReportAnswerResponse(
-                report_answer_id=report.answer.report_answer_id,
-                report_id=report.answer.report_id,
-                writer_id=report.answer.writer_id,
-                answer=report.answer.answer,
-                state=report.answer.state,
-                created_at=report.answer.created_at
-            ) if report.answer else None
+            answers=[
+                ReportAnswerResponse(
+                    report_answer_id=answer.report_answer_id,
+                    report_id=answer.report_id,
+                    writer_id=answer.writer_id,
+                    answer=answer.answer,
+                    state=answer.state,
+                    created_at=answer.created_at
+                )
+                for answer in report.answers
+            ]
         )
         for report in reports
     ]

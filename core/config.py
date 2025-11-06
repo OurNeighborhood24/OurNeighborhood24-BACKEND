@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # JWT 설정
     secret_key: str = os.getenv("JWT_SECRET_KEY", "asdadsadsadsd")
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 43200))  # 30일 (시연용)
     refresh_token_expire_days: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", 7))
 
     # 데이터베이스 설정

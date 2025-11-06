@@ -12,17 +12,17 @@ class UserService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_user_by_email(self, email: str) -> Optional[User]:
+    def get_user_by_user_id(self, user_id: str) -> Optional[User]:
         """
-        이메일로 사용자 조회
+        user_id로 사용자 조회
 
         Args:
-            email: 사용자 이메일
+            user_id: 사용자 ID (문자열)
 
         Returns:
             사용자 객체 또는 None
         """
-        return self.db.query(User).filter(User.email == email).first()
+        return self.db.query(User).filter(User.id == user_id).first()
 
     def get_user_by_id(self, user_id: int) -> Optional[User]:
         """
@@ -70,12 +70,12 @@ class UserService:
         Raises:
             HTTPException: 이메일 중복 또는 지역이 존재하지 않는 경우
         """
-        # 이메일 중복 체크
-        existing_user = self.get_user_by_email(request.email)
+        # user_id 중복 체크
+        existing_user = self.get_user_by_user_id(request.id)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                detail="User ID already registered"
             )
 
         # 지역 존재 여부 확인
@@ -91,10 +91,10 @@ class UserService:
 
         # 사용자 생성
         new_user = User(
-            email=request.email,
+            id=request.id,
             password=hashed_password,
             region_id=request.region_id,
-            role=UserRole.USER
+            role=UserRole.from_str(request.role)
         )
 
         self.db.add(new_user)

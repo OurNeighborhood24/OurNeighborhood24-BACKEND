@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
@@ -14,15 +14,15 @@ class RegionResponse(BaseModel):
 
 class UserRegisterRequest(BaseModel):
     """회원가입 요청 스키마"""
-    email: EmailStr = Field(..., description="사용자 이메일")
+    id: str = Field(..., description="사용자 ID")
     password: str = Field(..., min_length=8, max_length=30, description="비밀번호 (8-30자)")
     region_id: int = Field(..., description="지역 ID")
+    role: str = Field(..., description="사용자 권한 (USER 또는 ADMIN)")
 
 
 class UserResponse(BaseModel):
     """사용자 응답 스키마"""
     user_id: int
-    email: str
     role: str
     region: RegionResponse
 

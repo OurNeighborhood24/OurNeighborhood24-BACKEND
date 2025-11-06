@@ -21,7 +21,7 @@ settings = get_settings()
     response_model=TokenResponse,
     status_code=status.HTTP_200_OK,
     summary="로그인",
-    description="이메일과 비밀번호로 로그인합니다. Access Token은 응답 본문에, Refresh Token은 쿠키에 포함됩니다."
+    description="user_id와 비밀번호로 로그인합니다. Access Token은 응답 본문에, Refresh Token은 쿠키에 포함됩니다."
 )
 async def login(
     request: LoginRequest,
@@ -31,7 +31,7 @@ async def login(
     """
     로그인 엔드포인트
 
-    - **email**: 사용자 이메일
+    - **user_id**: 사용자 ID
     - **password**: 비밀번호
 
     **응답:**
