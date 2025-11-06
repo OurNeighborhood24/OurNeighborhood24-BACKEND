@@ -17,6 +17,7 @@ from app.reports.schemas import (
     ReportAnswerResponse,
     ReportWithAnswerResponse,
     PaginatedReportResponse,
+    CategoryRecommendationRequest,
     CategoryRecommendationResponse
 )
 
@@ -48,32 +49,39 @@ async def get_categories(db: Session = Depends(get_db)):
     ]
 
 
-@router.get(
+@router.post(
     "/categories/recommend",
     response_model=CategoryRecommendationResponse,
     status_code=status.HTTP_200_OK,
     summary="카테고리 추천",
     description="신고 내용을 분석하여 적절한 카테고리를 AI로 추천합니다. 인증 불필요."
 )
-async def recommend_category(text: str):
+async def recommend_category(request: CategoryRecommendationRequest):
     """
     카테고리 추천 엔드포인트
 
     신고 내용 텍스트를 분석하여 가장 적절한 카테고리를 추천합니다.
 
-    - **text**: 신고 내용 텍스트 (query parameter)
-    
+    - **content**: 신고 내용 텍스트 (request body)
+
     **응답:**
     - category: 추천된 카테고리 이름
     - reason: 해당 카테고리를 선택한 이유
     """
-    classifier = ReportClassifier(model_name="gemini-2.0-flash-exp")
-    result = classifier.classify(text)
-    
-    return CategoryRecommendationResponse(
-        category=result["category"],
-        reason=result["confidence_reason"]
-    )
+    try:
+        classifier = ReportClassifier(model_name="gemini-2.0-flash-exp")
+        result = classifier.classify(request.content)
+
+        return CategoryRecommendationResponse(
+            category=result["category"],
+            reason=result["confidence_reason"]
+        )
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"카테고리 추천 중 오류가 발생했습니다: {str(e)}"
+        )
 
 
 @router.post(

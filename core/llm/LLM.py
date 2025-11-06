@@ -1,11 +1,16 @@
 from typing import Dict
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
-from langchain.schema import SystemMessage, HumanMessage
-from langchain.output_parsers import StructuredOutputParser, ResponseSchema
+from langchain.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+class CategoryClassificationResult(BaseModel):
+    """카테고리 분류 결과 스키마"""
+    category: str = Field(description="신고 문장에 가장 적합한 카테고리 이름")
+    confidence_reason: str = Field(description="이 카테고리를 선택한 이유에 대한 간단한 설명")
 
 class ReportClassifier:
     """
@@ -31,57 +36,57 @@ class ReportClassifier:
         "기타"
     ]
 
-    def __init__(self, model_name: str = "gpt-4o-mini", temperature: float = 0.0):
-        self.llm = ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
-        self.system_prompt = (
-            "당신은 한국어 신고 텍스트를 주어진 카테고리 중 하나로 정확히 분류하는 AI 어시스턴트입니다."
-        )
+    def __init__(self, model_name: str = "gemini-2.0-flash-exp", temperature: float = 0.0):
+        # with_structured_output을 사용하기 위한 LLM 설정
+        base_llm = ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
+        self.llm = base_llm.with_structured_output(CategoryClassificationResult)
+        
+        categories_str = "".join([f"- {c}" for c in self.CATEGORIES])
 
-        self.response_schema = [
-            ResponseSchema(
-                name="category",
-                description="신고 문장에 가장 적합한 카테고리 이름 (주어진 목록 중 하나)"
-            ),
-            ResponseSchema(
-                name="confidence_reason",
-                description="이 카테고리를 선택한 이유에 대한 간단한 설명"
-            ),
-        ]
-        self.parser = StructuredOutputParser.from_response_schemas(self.response_schema)
-        self.format_instructions = self.parser.get_format_instructions()
+        self.prompt = ChatPromptTemplate.from_messages([
+            ("system", "당신은 한국어 신고 텍스트를 주어진 카테고리 중 하나로 정확히 분류하는 AI 어시스턴트입니다."),
+            ("human", f"""다음 신고 문장을 가장 적절한 카테고리로 분류하세요.
 
-        categories_str = "\n".join([f"- {c}" for c in self.CATEGORIES])
-
-        self.prompt = PromptTemplate.from_template(f"""
-다음 신고 문장을 가장 적절한 카테고리로 분류하세요.
 가능한 카테고리 목록:
 {categories_str}
 
 신고 문장:
 {{text}}
 
-출력 형식:
-{{format_instructions}}
-""")
+반드시 위 목록에 있는 카테고리 중 하나를 선택하고, 선택한 이유를 간단히 설명하세요.""")
+        ])
 
     def classify(self, text: str) -> Dict[str, str]:
         """
         신고 텍스트를 카테고리로 분류
+        
+        Args:
+            text: 분류할 신고 텍스트
+            
+        Returns:
+            Dict[str, str]: category와 confidence_reason을 포함하는 딕셔너리
         """
-        human_message = HumanMessage(
-            content=self.prompt.format(
-                text=text, format_instructions=self.format_instructions
+        try:
+            # with_structured_output을 사용하면 Pydantic 모델이 직접 반환됨
+            result: CategoryClassificationResult = self.llm.invoke(
+                self.prompt.format_messages(text=text)
             )
-        )
-        system_message = SystemMessage(content=self.system_prompt)
-
-        response = self.llm.invoke([system_message, human_message])
-        parsed = self.parser.parse(response.content)
-        return parsed
+            
+            return {
+                "category": result.category,
+                "confidence_reason": result.confidence_reason
+            }
+        except Exception as e:
+            # 분류 실패 시 기본 카테고리 반환
+            print(f"Classification error: {e}")
+            return {
+                "category": "기타",
+                "confidence_reason": f"분류 중 오류가 발생했습니다: {str(e)}"
+            }
 
 
 if __name__ == "__main__":
-    classifier = ReportClassifier(model_name="gemini-2.5-flash")
+    classifier = ReportClassifier(model_name="gemini-2.0-flash-exp")
 
     examples = [
         "횡단보도 옆 가로등이 고장났어요",

@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", 7))
 
     # 데이터베이스 설정
-    database_url: str = os.getenv("mysql+pymysql://root:kdoornega0128@localhost:3306/OurNeighborhood", "mysql+pymysql://user:password@localhost:3306/dbname")
+    database_url: str = os.getenv("DATABASE_URL", "mysql+pymysql://user:password@localhost:3306/dbname")
     db_echo: bool = False
 
     # CORS 설정
