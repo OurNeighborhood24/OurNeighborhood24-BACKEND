@@ -32,12 +32,21 @@ class ReportClassifier:
     ]
 
     def __init__(self, model_name: str = "gemini-2.0-flash-exp", temperature: float = 0.0):
-        self.llm = ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
+        # JSON 모드를 명시적으로 설정
+        self.llm = ChatGoogleGenerativeAI(
+            model=model_name, 
+            temperature=temperature,
+            model_kwargs={
+                "response_mime_type": "application/json"
+            }
+        )
         
         categories_str = "\n".join([f"- {c}" for c in self.CATEGORIES])
 
         self.system_message = "당신은 한국어 신고 텍스트를 주어진 카테고리 중 하나로 정확히 분류하는 AI 어시스턴트입니다."
         
+        # f-string에서 categories_str만 처리하고, {text}는 나중에 format()으로 처리
+        # JSON 예시의 중괄호는 이중 중괄호로 이스케이프
         self.prompt_template = f"""다음 신고 문장을 가장 적절한 카테고리로 분류하세요.
 
 가능한 카테고리 목록:
@@ -48,10 +57,10 @@ class ReportClassifier:
 
 반드시 위 목록에 있는 카테고리 중 하나를 선택하고, 다음 JSON 형식으로만 응답하세요:
 
-{{
+{{{{
   "category": "선택한 카테고리",
   "confidence_reason": "이 카테고리를 선택한 이유"
-}}"""
+}}}}"""
 
     def classify(self, text: str) -> Dict[str, str]:
         """
@@ -74,18 +83,8 @@ class ReportClassifier:
             response = self.llm.invoke(messages)
             response_text = response.content.strip()
             
-            # JSON 블록 추출 (```json ... ``` 형식 처리)
-            json_match = re.search(r'```json\s*(\{.*?\})\s*```', response_text, re.DOTALL)
-            if json_match:
-                response_text = json_match.group(1)
-            else:
-                # 일반 JSON 객체 추출
-                json_match = re.search(r'\{.*?\}', response_text, re.DOTALL)
-                if json_match:
-                    response_text = json_match.group(0)
-            
-            # JSON 파싱
-            result = json.loads(response_text)
+            # 여러 방법으로 JSON 파싱 시도
+            result = self._parse_json_response(response_text)
             
             # 카테고리 검증
             category = result.get("category", "기타")
@@ -98,18 +97,66 @@ class ReportClassifier:
                 "confidence_reason": result.get("confidence_reason", "카테고리를 분류했습니다.")
             }
             
-        except json.JSONDecodeError as e:
-            print(f"JSON parsing error: {e}, response: {response_text if 'response_text' in locals() else 'N/A'}")
-            return {
-                "category": "기타",
-                "confidence_reason": "응답 형식을 파싱할 수 없습니다."
-            }
         except Exception as e:
             print(f"Classification error: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 "category": "기타",
-                "confidence_reason": f"분류 중 오류가 발생했습니다: {str(e)}"
+                "confidence_reason": "분류 중 오류가 발생했습니다."
             }
+    
+    def _parse_json_response(self, response_text: str) -> dict:
+        """
+        여러 방법으로 JSON 응답 파싱 시도
+        """
+        # 방법 1: 직접 파싱
+        try:
+            return json.loads(response_text)
+        except:
+            pass
+        
+        # 방법 2: ```json ... ``` 블록 추출
+        try:
+            pattern = r'```json\s*(\{.*?\})\s*```'
+            match = re.search(pattern, response_text, re.DOTALL)
+            if match:
+                return json.loads(match.group(1))
+        except:
+            pass
+        
+        # 방법 3: 중괄호 사이의 내용 추출 (category와 confidence_reason 포함)
+        try:
+            pattern = r'\{[^{}]*"category"[^{}]*"confidence_reason"[^{}]*\}'
+            match = re.search(pattern, response_text, re.DOTALL)
+            if match:
+                return json.loads(match.group(0))
+        except:
+            pass
+        
+        # 방법 4: 가장 큰 중괄호 블록 찾기
+        try:
+            pattern = r'\{.*\}'
+            match = re.search(pattern, response_text, re.DOTALL)
+            if match:
+                return json.loads(match.group(0))
+        except:
+            pass
+        
+        # 방법 5: 수동으로 category와 reason 추출
+        try:
+            category_match = re.search(r'"category"\s*:\s*"([^"]+)"', response_text)
+            reason_match = re.search(r'"confidence_reason"\s*:\s*"([^"]+)"', response_text)
+            
+            if category_match and reason_match:
+                return {
+                    "category": category_match.group(1),
+                    "confidence_reason": reason_match.group(1)
+                }
+        except:
+            pass
+        
+        raise ValueError(f"Could not parse JSON from response: {response_text[:200]}")
     
     def _find_similar_category(self, category: str) -> str:
         """
