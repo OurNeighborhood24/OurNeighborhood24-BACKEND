@@ -6,6 +6,7 @@ from api.users.router import router as users_router
 from api.auth.router import router as auth_router
 from api.reports.router import router as reports_router
 from api.notifications.router import router as notifications_router
+from api.routes.router import router as routes_router
 
 settings = get_settings()
 
@@ -54,6 +55,7 @@ app.include_router(users_router, prefix="/users", tags=["users"])
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(reports_router, prefix="/reports", tags=["reports"])
 app.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
+app.include_router(routes_router, prefix="/routes", tags=["routes"])
 
 if __name__ == "__main__":
     import uvicorn

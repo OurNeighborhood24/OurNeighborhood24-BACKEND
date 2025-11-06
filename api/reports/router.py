@@ -240,6 +240,58 @@ async def get_my_reports(
     ]
 
 
+@router.get(
+    "/answers",
+    response_model=List[ReportWithAnswerResponse],
+    status_code=status.HTTP_200_OK,
+    summary="응답한 신고 목록 조회 (관리자)",
+    description="답변이 있는 신고 목록을 조회합니다. 관리자 권한 필요."
+)
+async def get_reports_with_answers(
+    _: None = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    답변이 있는 신고 목록 조회 엔드포인트 (관리자용)
+
+    답변이 작성된 신고와 답변을 함께 반환합니다.
+    """
+    report_service = ReportService(db)
+    reports = report_service.get_reports_with_answers()
+
+    return [
+        ReportWithAnswerResponse(
+            report=ReportDetailResponse(
+                report_id=report.report_id,
+                writer_id=report.writer_id,
+                category=CategoryResponse(
+                    category_id=report.category.category_id,
+                    category_name=report.category.category_name
+                ),
+                latitude=report.latitude,
+                longitude=report.longitude,
+                title=report.title,
+                description=report.description,
+                image_url=report.image_url,
+                state=report.state.value,
+                created_at=report.created_at
+            ),
+            answers=[
+                ReportAnswerResponse(
+                    report_answer_id=answer.report_answer_id,
+                    report_id=answer.report_id,
+                    writer_id=answer.writer_id,
+                    answer=answer.answer,
+                    state=answer.state,
+                    created_at=answer.created_at
+                )
+                for answer in report.answers
+            ]
+        )
+        for report in reports
+    ]
+
+
 @router.patch(
     "/{report_id}",
     response_model=ReportDetailResponse,
@@ -479,55 +531,3 @@ async def create_report_answer(
         state=answer.state,
         created_at=answer.created_at
     )
-
-
-@router.get(
-    "/answers",
-    response_model=List[ReportWithAnswerResponse],
-    status_code=status.HTTP_200_OK,
-    summary="응답한 신고 목록 조회 (관리자)",
-    description="답변이 있는 신고 목록을 조회합니다. 관리자 권한 필요."
-)
-async def get_reports_with_answers(
-    _: None = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    답변이 있는 신고 목록 조회 엔드포인트 (관리자용)
-
-    답변이 작성된 신고와 답변을 함께 반환합니다.
-    """
-    report_service = ReportService(db)
-    reports = report_service.get_reports_with_answers()
-
-    return [
-        ReportWithAnswerResponse(
-            report=ReportDetailResponse(
-                report_id=report.report_id,
-                writer_id=report.writer_id,
-                category=CategoryResponse(
-                    category_id=report.category.category_id,
-                    category_name=report.category.category_name
-                ),
-                latitude=report.latitude,
-                longitude=report.longitude,
-                title=report.title,
-                description=report.description,
-                image_url=report.image_url,
-                state=report.state.value,
-                created_at=report.created_at
-            ),
-            answers=[
-                ReportAnswerResponse(
-                    report_answer_id=answer.report_answer_id,
-                    report_id=answer.report_id,
-                    writer_id=answer.writer_id,
-                    answer=answer.answer,
-                    state=answer.state,
-                    created_at=answer.created_at
-                )
-                for answer in report.answers
-            ]
-        )
-        for report in reports
-    ]

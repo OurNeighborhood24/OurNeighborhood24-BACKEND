@@ -41,6 +41,8 @@ class Settings(BaseSettings):
 
     google_api_key : str = os.getenv("GOOGLE_API_KEY", "")
 
+    tmap_api_key : str = os.getenv("TMAP_API_KEY", "")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
