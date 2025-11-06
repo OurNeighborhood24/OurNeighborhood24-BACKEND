@@ -18,17 +18,6 @@ class SafeRouteRequest(BaseModel):
     danger_radius: Optional[float] = Field(50, description="위험 지역 반경 (미터)", ge=10, le=200)
 
 
-class DangerZoneInfo(BaseModel):
-    """위험 지역 정보"""
-    report_id: int
-    title: str
-    description: str
-    longitude: float
-    latitude: float
-    category_name: str
-    state: str
-
-
 class WaypointInfo(BaseModel):
     """경유지 정보"""
     longitude: float
@@ -38,8 +27,10 @@ class WaypointInfo(BaseModel):
 
 class SafeRouteResponse(BaseModel):
     """안전 경로 응답"""
-    original_route: List[CoordinatePoint] = Field(..., description="원본 경로 좌표")
+    original_route: List[CoordinatePoint] = Field(..., description="원본 직선 경로 좌표 (출발지→목적지)")
+    safe_route: List[CoordinatePoint] = Field(..., description="안전 경로 좌표 (경유지를 거치는 전체 경로)")
     waypoints: List[WaypointInfo] = Field(..., description="안전한 경유지 목록")
-    nearby_dangers: List[DangerZoneInfo] = Field(..., description="경로 근처의 위험 지역 목록")
-    total_distance: Optional[float] = Field(None, description="총 거리 (미터)")
-    total_time: Optional[int] = Field(None, description="예상 소요 시간 (분)")
+    original_distance: Optional[float] = Field(None, description="원본 경로 거리 (미터)")
+    original_time: Optional[int] = Field(None, description="원본 경로 소요 시간 (분)")
+    safe_distance: Optional[float] = Field(None, description="안전 경로 거리 (미터)")
+    safe_time: Optional[int] = Field(None, description="안전 경로 소요 시간 (분)")

@@ -49,7 +49,6 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
-
 # 라우터 등록
 app.include_router(users_router, prefix="/users", tags=["users"])
 app.include_router(auth_router, prefix="/auth", tags=["auth"])

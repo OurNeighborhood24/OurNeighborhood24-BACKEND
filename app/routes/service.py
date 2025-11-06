@@ -1,11 +1,10 @@
 from sqlalchemy.orm import Session
 from typing import List, Tuple, Optional
-from app.reports.models import Report
+from app.reports.models import Report, ReportState
 from app.routes.schemas import (
     SafeRouteRequest,
     SafeRouteResponse,
     CoordinatePoint,
-    DangerZoneInfo,
     WaypointInfo
 )
 from core.adapter.tmap import (
@@ -13,8 +12,7 @@ from core.adapter.tmap import (
     extract_coordinates_from_route,
     create_route_linestring,
     create_buffer_polygon,
-    calculate_safe_waypoints,
-    find_nearby_dangers
+    calculate_safe_waypoints
 )
 from core.config import get_settings
 
@@ -76,8 +74,10 @@ class SafeRouteService:
             buffer_distance_meters=request.buffer_distance
         )
         
-        # 4. DB에서 모든 위험 지역(신고) 조회
-        danger_reports = self.db.query(Report).all()
+        # 4. DB에서 위험 지역(신고) 조회 - COMPLETED 상태 제외
+        danger_reports = self.db.query(Report).filter(
+            Report.state != ReportState.COMPLETED
+        ).all()
         
         # 위험 지역 좌표 리스트 생성
         danger_points = [
@@ -91,57 +91,61 @@ class SafeRouteService:
             danger_points,
             danger_radius_meters=request.danger_radius
         )
-        
-        # 6. 경로 근처의 위험 지역 찾기
-        danger_dicts = [
-            {
-                'report_id': report.report_id,
-                'title': report.title,
-                'description': report.description,
-                'longitude': report.longitude,
-                'latitude': report.latitude,
-                'category_name': report.category.category_name if report.category else "미분류",
-                'state': report.state.value
-            }
-            for report in danger_reports
-        ]
-        
-        nearby_dangers_data = find_nearby_dangers(
-            route_polygon,
-            danger_dicts,
-            search_distance_meters=200
-        )
-        
-        # 7. 응답 데이터 구성
+
+        # 6. 경유지를 거치는 안전 경로 계산
+        safe_route_coords = []
+        safe_distance = 0.0
+        safe_time = 0
+
+        if safe_waypoints:
+            # 경유지가 있으면: 출발지 → 경유지들 → 목적지 경로 조회
+            points = [start_coord] + safe_waypoints + [end_coord]
+
+            for i in range(len(points) - 1):
+                segment_route = get_pedestrian_route(points[i], points[i + 1], tmap_api_key)
+                segment_coords = extract_coordinates_from_route(segment_route)
+                safe_route_coords.extend(segment_coords)
+
+                # 구간별 거리와 시간 합산
+                if "features" in segment_route and len(segment_route["features"]) > 0:
+                    segment_props = segment_route["features"][0].get("properties", {})
+                    segment_distance = segment_props.get("totalDistance", 0)
+                    segment_time = segment_props.get("totalTime", 0)
+
+                    if segment_distance:
+                        safe_distance += segment_distance
+                    if segment_time:
+                        safe_time += int(segment_time / 60)
+        else:
+            # 경유지가 없으면 원본 경로와 동일
+            safe_route_coords = coordinates
+            safe_distance = total_distance
+            safe_time = total_time
+
+        # 8. 응답 데이터 구성
         original_route_points = [
             CoordinatePoint(longitude=lon, latitude=lat)
             for lon, lat in coordinates
         ]
-        
+
+        safe_route_points = [
+            CoordinatePoint(longitude=lon, latitude=lat)
+            for lon, lat in safe_route_coords
+        ]
+
         waypoint_infos = [
             WaypointInfo(longitude=lon, latitude=lat, order=idx + 1)
             for idx, (lon, lat) in enumerate(safe_waypoints)
         ]
-        
-        danger_zone_infos = [
-            DangerZoneInfo(
-                report_id=danger['report_id'],
-                title=danger['title'],
-                description=danger['description'],
-                longitude=danger['longitude'],
-                latitude=danger['latitude'],
-                category_name=danger['category_name'],
-                state=danger['state']
-            )
-            for danger in nearby_dangers_data
-        ]
-        
+
         return SafeRouteResponse(
             original_route=original_route_points,
+            safe_route=safe_route_points,
             waypoints=waypoint_infos,
-            nearby_dangers=danger_zone_infos,
-            total_distance=total_distance,
-            total_time=total_time
+            original_distance=total_distance,
+            original_time=total_time,
+            safe_distance=safe_distance,
+            safe_time=safe_time
         )
     
     def get_route_with_waypoints(
@@ -152,7 +156,7 @@ class SafeRouteService:
     ) -> dict:
         """
         경유지를 포함한 경로 조회
-        
+
         Args:
             start: 출발지 (경도, 위도)
             waypoints: 경유지 리스트 [(경도, 위도), ...]
