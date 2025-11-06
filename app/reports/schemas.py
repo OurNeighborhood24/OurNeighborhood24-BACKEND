@@ -107,3 +107,15 @@ class PaginatedReportResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+class CategoryRecommendationRequest(BaseModel):
+    """카테고리 추천 요청 스키마"""
+    content: str = Field(..., description="신고 내용 텍스트")
+
+
+class CategoryRecommendationResponse(BaseModel):
+    """카테고리 추천 응답 스키마"""
+    category: str = Field(..., description="추천된 카테고리")
+    reason: str = Field(..., description="해당 카테고리를 선택한 이유")

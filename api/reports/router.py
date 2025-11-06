@@ -5,6 +5,7 @@ from core.database import get_db
 from core.dependencies import get_current_user_id, require_admin
 from app.reports.service import CategoryService, ReportService
 from core.util.s3_util import get_s3_util
+from core.llm.LLM import ReportClassifier
 from app.reports.schemas import (
     CategoryResponse,
     ReportCreateRequest,
@@ -15,7 +16,8 @@ from app.reports.schemas import (
     ReportAnswerCreateRequest,
     ReportAnswerResponse,
     ReportWithAnswerResponse,
-    PaginatedReportResponse
+    PaginatedReportResponse,
+    CategoryRecommendationResponse
 )
 
 router = APIRouter()
@@ -44,6 +46,34 @@ async def get_categories(db: Session = Depends(get_db)):
         )
         for category in categories
     ]
+
+
+@router.get(
+    "/categories/recommend",
+    response_model=CategoryRecommendationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="카테고리 추천",
+    description="신고 내용을 분석하여 적절한 카테고리를 AI로 추천합니다. 인증 불필요."
+)
+async def recommend_category(text: str):
+    """
+    카테고리 추천 엔드포인트
+
+    신고 내용 텍스트를 분석하여 가장 적절한 카테고리를 추천합니다.
+
+    - **text**: 신고 내용 텍스트 (query parameter)
+    
+    **응답:**
+    - category: 추천된 카테고리 이름
+    - reason: 해당 카테고리를 선택한 이유
+    """
+    classifier = ReportClassifier(model_name="gemini-2.0-flash-exp")
+    result = classifier.classify(text)
+    
+    return CategoryRecommendationResponse(
+        category=result["category"],
+        reason=result["confidence_reason"]
+    )
 
 
 @router.post(

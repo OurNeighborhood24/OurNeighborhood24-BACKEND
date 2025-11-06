@@ -22,10 +22,9 @@ class Settings(BaseSettings):
     # 데이터베이스 설정
     database_url: str = os.getenv("mysql+pymysql://root:kdoornega0128@localhost:3306/OurNeighborhood", "mysql+pymysql://user:password@localhost:3306/dbname")
     db_echo: bool = False
-    
 
     # CORS 설정
-    cors_origins: list = ["*"]
+    cors_origins: list = ["*"]  # 모든 origin 허용
     cors_credentials: bool = False
     cors_methods: list = ["*"]
     cors_headers: list = ["*"]
@@ -39,6 +38,8 @@ class Settings(BaseSettings):
     aws_secret_key: str = os.getenv("AWS_SECRET_KEY", "")
     aws_region: str = os.getenv("AWS_REGION", "ap-northeast-2")
     aws_s3_bucket: str = os.getenv("AWS_S3_BUCKET", "")
+
+    google_api_key : str = os.getenv("GOOGLE_API_KEY", "")
 
     class Config:
         env_file = ".env"
