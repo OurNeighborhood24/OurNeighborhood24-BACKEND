@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # CORS 설정
     cors_origins: list = ["*"]
-    cors_credentials: bool = True
+    cors_credentials: bool = False
     cors_methods: list = ["*"]
     cors_headers: list = ["*"]
 
